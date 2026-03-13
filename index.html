@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Moe Kyaw Aung — Linux Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#020408;
+  --bg1:#080d12;
+  --bg2:#0d1520;
+  --surface:rgba(0,255,159,0.04);
+  --border:rgba(0,255,159,0.15);
+  --green:#00ff9f;
+  --green2:#00e57a;
+  --cyan:#00e5ff;
+  --red:#ff4757;
+  --yellow:#ffd32a;
+  --muted:#4a6741;
+  --text:#b2ffd8;
+  --dim:#567a5e;
+  --font:'Fira Code',monospace;
+  --display:'Orbitron',monospace;
+}
+
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden;cursor:none}
+
+/* Scanlines overlay */
+body::before{
+  content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+}
+
+/* CRT glow */
+body::after{
+  content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.6) 100%);
+}
+
+/* Custom cursor */
+.cursor{position:fixed;width:4px;height:20px;background:var(--green);z-index:10000;pointer-events:none;animation:blink .8s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Matrix canvas */
+#matrix{position:fixed;inset:0;z-index:0;opacity:.07}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(2,4,8,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  padding:14px 48px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-brand{font-family:var(--display);font-size:.85rem;font-weight:900;color:var(--green);letter-spacing:.15em;text-decoration:none}
+.nav-brand span{color:var(--cyan)}
+.nav-links{display:flex;gap:32px;list-style:none}
+.nav-links a{color:var(--dim);text-decoration:none;font-size:.78rem;letter-spacing:.08em;transition:color .2s}
+.nav-links a::before{content:'./';color:var(--green);opacity:0;transition:opacity .2s}
+.nav-links a:hover{color:var(--green)}
+.nav-links a:hover::before{opacity:1}
+.nav-status{display:flex;align-items:center;gap:8px;font-size:.72rem;color:var(--dim)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 0 rgba(0,255,159,.4)}70%{box-shadow:0 0 0 8px rgba(0,255,159,0)}}
+
+/* ── HERO TERMINAL ── */
+#hero{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:100px 48px 60px;position:relative;
+}
+.terminal-window{
+  width:100%;max-width:900px;
+  background:var(--bg1);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 0 60px rgba(0,255,159,.07),0 0 120px rgba(0,229,255,.04);
+  overflow:hidden;position:relative;z-index:1;
+}
+.terminal-bar{
+  background:var(--bg2);padding:12px 20px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1px solid var(--border);
+}
+.t-dots{display:flex;gap:7px}
+.t-dot{width:13px;height:13px;border-radius:50%}
+.t-title{margin-left:auto;margin-right:auto;font-size:.75rem;color:var(--dim);letter-spacing:.1em}
+.terminal-body{padding:36px 40px;min-height:440px}
+.t-prompt{display:flex;align-items:baseline;gap:0;margin-bottom:6px}
+.t-user{color:var(--green);font-weight:600}
+.t-at{color:var(--dim)}
+.t-host{color:var(--cyan)}
+.t-colon,.t-dir{color:var(--dim)}
+.t-dir{color:var(--yellow)}
+.t-dollar{color:var(--text);margin-left:4px}
+.t-cmd{color:var(--text);margin-left:6px}
+.t-output{padding-left:0;margin-bottom:28px}
+.t-output .line{display:block;line-height:1.9;font-size:.88rem}
+.green{color:var(--green)}
+.cyan{color:var(--cyan)}
+.yellow{color:var(--yellow)}
+.red{color:var(--red)}
+.dim{color:var(--dim)}
+.white{color:#e8f0e8}
+
+.ascii-name{
+  font-family:var(--display);
+  font-size:clamp(1.6rem,4vw,2.8rem);
+  font-weight:900;
+  color:var(--green);
+  letter-spacing:.12em;
+  text-shadow:0 0 30px rgba(0,255,159,.4),0 0 60px rgba(0,255,159,.15);
+  line-height:1.2;
+  margin:8px 0 4px;
+}
+.ascii-sub{
+  font-family:var(--display);font-size:.75rem;
+  color:var(--cyan);letter-spacing:.3em;
+  text-shadow:0 0 20px rgba(0,229,255,.3);
+  margin-bottom:20px;
+}
+
+.progress-bar{
+  display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:.82rem;
+}
+.bar-label{color:var(--dim);width:130px;flex-shrink:0}
+.bar-track{flex:1;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width 1.5s ease}
+.bar-pct{color:var(--green);width:36px;text-align:right;font-size:.78rem}
+
+.typewriter{overflow:hidden;white-space:nowrap;animation:type 2.5s steps(40) .5s both}
+@keyframes type{from{width:0}to{width:100%}}
+
+/* ── SECTIONS ── */
+section{padding:80px 48px;position:relative;z-index:1}
+.section-inner{max-width:1100px;margin:0 auto}
+.sec-header{margin-bottom:48px}
+.sec-prompt{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:.8rem;color:var(--green);margin-bottom:8px;
+}
+.sec-prompt::before{content:'$';color:var(--dim)}
+.sec-title{
+  font-family:var(--display);font-size:clamp(1.4rem,3vw,2rem);
+  font-weight:900;color:var(--text);letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.sec-title span{color:var(--green)}
+
+/* About */
+#about{background:var(--bg1);border-top:1px solid var(--border)}
+.about-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
+.about-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:28px;font-size:.85rem;line-height:2;
+}
+.about-card .key{color:var(--cyan);display:inline-block;width:80px}
+.about-card .val{color:var(--text)}
+.about-card .val a{color:var(--green);text-decoration:none}
+.info-row{margin-bottom:4px}
+.about-bio{margin-top:32px;font-size:.88rem;line-height:1.9;color:var(--dim)}
+.about-bio strong{color:var(--text)}
+.highlight-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.h-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:16px;font-size:.8rem;
+  transition:border-color .3s,box-shadow .3s;
+}
+.h-card:hover{border-color:var(--green);box-shadow:0 0 16px rgba(0,255,159,.07)}
+.h-card-title{color:var(--green);font-weight:600;margin-bottom:4px}
+.h-card-sub{color:var(--dim)}
+
+/* Skills */
+#skills{background:var(--bg)}
+.skills-list{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.skill-block{
+  background:var(--bg1);border:1px solid var(--border);border-radius:10px;
+  padding:24px;transition:border-color .3s,transform .3s;
+}
+.skill-block:hover{border-color:rgba(0,255,159,.4);transform:translateY(-3px)}
+.skill-block-title{
+  font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--green);margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.skill-block-title::before{content:'>';color:var(--dim)}
+
+/* Projects */
+#projects{background:var(--bg1);border-top:1px solid var(--border)}
+.projects-list{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.proj-card{
+  background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:28px;position:relative;overflow:hidden;
+  transition:border-color .3s,transform .3s;cursor:pointer;
+}
+.proj-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--green),var(--cyan));
+  transform:scaleX(0);transform-origin:left;transition:transform .3s;
+}
+.proj-card:hover::before{transform:scaleX(1)}
+.proj-card:hover{border-color:rgba(0,255,159,.3);transform:translateY(-4px)}
+.proj-card.wide{grid-column:1/-1}
+.proj-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.proj-num{
+  font-family:var(--display);font-size:2rem;font-weight:900;
+  color:rgba(0,255,159,.08);line-height:1;
+}
+.proj-status{
+  font-size:.7rem;letter-spacing:.1em;padding:3px 10px;border-radius:4px;
+  background:rgba(0,255,159,.07);border:1px solid rgba(0,255,159,.2);color:var(--green);
+}
+.proj-title{
+  font-family:var(--display);font-size:1rem;font-weight:700;
+  color:var(--text);letter-spacing:.05em;margin-bottom:10px;
+}
+.proj-desc{font-size:.83rem;color:var(--dim);line-height:1.8;margin-bottom:16px}
+.proj-tags{display:flex;flex-wrap:wrap;gap:8px}
+.p-tag{
+  font-size:.72rem;padding:3px 10px;border-radius:4px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  color:var(--dim);letter-spacing:.04em;
+}
+
+/* Contact */
+#contact{background:var(--bg)}
+.contact-terminal{
+  background:var(--bg1);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;max-width:700px;
+}
+.contact-terminal .terminal-bar{padding:10px 16px}
+.contact-body{padding:32px 36px}
+.c-line{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;font-size:.88rem}
+.c-key{color:var(--cyan);min-width:80px}
+.c-val{color:var(--text)}
+.c-val a{color:var(--green);text-decoration:none;transition:text-shadow .2s}
+.c-val a:hover{text-shadow:0 0 12px rgba(0,255,159,.5)}
+.c-comment{color:var(--dim);font-size:.8rem;margin-left:8px}
+
+/* Footer */
+footer{
+  background:var(--bg1);border-top:1px solid var(--border);
+  padding:28px 48px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;z-index:1;
+}
+.footer-text{font-size:.78rem;color:var(--dim)}
+.footer-text span{color:var(--green)}
+.footer-links{display:flex;gap:24px}
+.footer-links a{color:var(--dim);text-decoration:none;font-size:.78rem;transition:color .2s}
+.footer-links a:hover{color:var(--green)}
+
+/* Fade in */
+.fade{opacity:0;transform:translateY(20px);transition:opacity .6s,transform .6s}
+.fade.show{opacity:1;transform:translateY(0)}
+
+@media(max-width:768px){
+  nav{padding:14px 20px}
+  .nav-links{display:none}
+  section{padding:60px 20px}
+  #hero{padding:80px 20px 40px}
+  .about-grid,.skills-list,.projects-list{grid-template-columns:1fr}
+  .proj-card.wide{grid-column:1}
+  .highlight-grid{grid-template-columns:1fr}
+  .terminal-body{padding:24px 20px}
+  footer{flex-direction:column;gap:12px;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<canvas id="matrix"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a href="#hero" class="nav-brand">MOE<span>@</span>LINUX</a>
+  <ul class="nav-links">
+    <li><a href="#about">about</a></li>
+    <li><a href="#skills">skills</a></li>
+    <li><a href="#projects">projects</a></li>
+    <li><a href="#contact">contact</a></li>
+  </ul>
+  <div class="nav-status">
+    <div class="status-dot"></div>
+    available
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="terminal-window">
+    <div class="terminal-bar">
+      <div class="t-dots">
+        <div class="t-dot" style="background:#ff5f57"></div>
+        <div class="t-dot" style="background:#febc2e"></div>
+        <div class="t-dot" style="background:#28c840"></div>
+      </div>
+      <div class="t-title">moe@archlinux: ~</div>
+    </div>
+    <div class="terminal-body">
+      <div class="t-prompt">
+        <span class="t-user">moe</span><span class="t-at">@</span><span class="t-host">archlinux</span><span class="t-colon">:</span><span class="t-dir">~</span><span class="t-dollar">$</span>
+        <span class="t-cmd">./introduce.sh</span>
+      </div>
+      <div class="t-output" style="margin-bottom:24px">
+        <span class="line dim"># Booting profile... ████████████ 100%</span>
+      </div>
+
+      <div class="ascii-name">MOE KYAW AUNG</div>
+      <div class="ascii-sub">LINUX · ANDROID · MOTION · MYANMAR</div>
+
+      <div class="t-output" style="margin-bottom:32px">
+        <span class="line"><span class="cyan">role</span>     <span class="white">=</span> <span class="green">"Android Developer & Motion Designer"</span></span>
+        <span class="line"><span class="cyan">location</span> <span class="white">=</span> <span class="green">"Tachileik, Myanmar 🇲🇲"</span></span>
+        <span class="line"><span class="cyan">os</span>       <span class="white">=</span> <span class="yellow">"Arch Linux"</span> <span class="dim"># btw</span></span>
+        <span class="line"><span class="cyan">stack</span>    <span class="white">=</span> <span class="green">["Kotlin","Compose","Firebase","Gemini AI","Docker"]</span></span>
+        <span class="line"><span class="cyan">status</span>   <span class="white">=</span> <span class="green">"✓ available for work"</span></span>
+      </div>
+
+      <div class="t-prompt">
+        <span class="t-user">moe</span><span class="t-at">@</span><span class="t-host">archlinux</span><span class="t-colon">:</span><span class="t-dir">~</span><span class="t-dollar">$</span>
+        <span class="t-cmd">skills --progress</span>
+      </div>
+      <div class="t-output" style="padding-top:12px">
+        <div class="progress-bar"><span class="bar-label">Kotlin</span><div class="bar-track"><div class="bar-fill" style="width:0" data-w="95%"></div></div><span class="bar-pct">95%</span></div>
+        <div class="progress-bar"><span class="bar-label">Jetpack Compose</span><div class="bar-track"><div class="bar-fill" style="width:0" data-w="90%"></div></div><span class="bar-pct">90%</span></div>
+        <div class="progress-bar"><span class="bar-label">Firebase</span><div class="bar-track"><div class="bar-fill" style="width:0" data-w="88%"></div></div><span class="bar-pct">88%</span></div>
+        <div class="progress-bar"><span class="bar-label">Motion Design</span><div class="bar-track"><div class="bar-fill" style="width:0" data-w="85%"></div></div><span class="bar-pct">85%</span></div>
+        <div class="progress-bar"><span class="bar-label">Linux / DevOps</span><div class="bar-track"><div class="bar-fill" style="width:0" data-w="80%"></div></div><span class="bar-pct">80%</span></div>
+      </div>
+
+      <div class="t-prompt" style="margin-top:24px">
+        <span class="t-user">moe</span><span class="t-at">@</span><span class="t-host">archlinux</span><span class="t-colon">:</span><span class="t-dir">~</span><span class="t-dollar">$</span>
+        <span class="t-cmd" style="color:var(--green)">█</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="section-inner">
+    <div class="sec-header fade">
+      <div class="sec-prompt">cat about.txt</div>
+      <h2 class="sec-title">About <span>Me</span></h2>
+    </div>
+    <div class="about-grid">
+      <div class="fade">
+        <div class="about-card">
+          <div class="info-row"><span class="key">Name</span><span class="val">Moe Kyaw Aung</span></div>
+          <div class="info-row"><span class="key">Role</span><span class="val">Android Dev · Motion Designer</span></div>
+          <div class="info-row"><span class="key">OS</span><span class="val">Arch Linux / Ubuntu</span></div>
+          <div class="info-row"><span class="key">Shell</span><span class="val">zsh + oh-my-zsh</span></div>
+          <div class="info-row"><span class="key">Editor</span><span class="val">Neovim + Android Studio</span></div>
+          <div class="info-row"><span class="key">Location</span><span class="val">Tachileik, Myanmar 🇲🇲</span></div>
+          <div class="info-row"><span class="key">Contract</span><span class="val">Microsoft (prev.)</span></div>
+          <div class="info-row"><span class="key">Mail</span><span class="val"><a href="mailto:moekyawaung@graduate.org">moekyawaung@graduate.org</a></span></div>
+          <div class="info-row"><span class="key">Wiki</span><span class="val"><a href="https://moekyaw-aung.github.io/Wiki/" target="_blank">moekyaw-aung.github.io/Wiki</a></span></div>
+        </div>
+        <div class="about-bio">
+          <strong>Android developer</strong> who lives on the terminal. Building polished apps with Kotlin and Jetpack Compose. <strong>Linux enthusiast</strong> — Arch btw. Beyond mobile, creating <strong>motion design, generative art</strong>, and cultural video content for Myanmar.
+        </div>
+      </div>
+      <div class="highlight-grid fade">
+        <div class="h-card">
+          <div class="h-card-title">📱 Android Native</div>
+          <div class="h-card-sub">Kotlin · Compose · MVVM</div>
+        </div>
+        <div class="h-card">
+          <div class="h-card-title">🐧 Linux</div>
+          <div class="h-card-sub">Arch · Ubuntu · Shell scripting</div>
+        </div>
+        <div class="h-card">
+          <div class="h-card-title">🤖 AI Integration</div>
+          <div class="h-card-sub">Gemini API · Cloud Run</div>
+        </div>
+        <div class="h-card">
+          <div class="h-card-title">🎨 Motion Design</div>
+          <div class="h-card-sub">Logo Anim · Generative Art</div>
+        </div>
+        <div class="h-card">
+          <div class="h-card-title">☁️ Cloud & DevOps</div>
+          <div class="h-card-sub">Docker · AWS · Firebase</div>
+        </div>
+        <div class="h-card">
+          <div class="h-card-title">🇲🇲 Myanmar Media</div>
+          <div class="h-card-sub">Cultural Video Production</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills">
+  <div class="section-inner">
+    <div class="sec-header fade">
+      <div class="sec-prompt">pacman -Qs installed</div>
+      <h2 class="sec-title">Tech <span>Stack</span></h2>
+    </div>
+    <div class="skills-list">
+      <div class="skill-block fade">
+        <div class="skill-block-title">Android Core</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="color:var(--green);font-size:.82rem">Kotlin</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Jetpack Compose</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">MVVM</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Room DB</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Retrofit</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Coroutines</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Flow</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Material You</span>
+        </div>
+      </div>
+      <div class="skill-block fade">
+        <div class="skill-block-title">Cloud & Backend</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="color:var(--cyan);font-size:.82rem">Firebase</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Google Cloud Run</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Docker</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">AWS</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Node.js</span><span class="dim">·</span>
+          <span style="color:var(--yellow);font-size:.82rem">Gemini AI API</span>
+        </div>
+      </div>
+      <div class="skill-block fade">
+        <div class="skill-block-title">Linux & Tools</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="color:var(--yellow);font-size:.82rem">Arch Linux</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Ubuntu</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Neovim</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">zsh</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Git</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">React</span><span class="dim">·</span>
+          <span style="color:var(--text);font-size:.82rem">Bash</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="section-inner">
+    <div class="sec-header fade">
+      <div class="sec-prompt">ls -la ~/projects/</div>
+      <h2 class="sec-title">Featured <span>Projects</span></h2>
+    </div>
+    <div class="projects-list">
+
+      <div class="proj-card wide fade">
+        <div class="proj-header">
+          <div class="proj-num">01</div>
+          <div class="proj-status">LIVE</div>
+        </div>
+        <div class="proj-title">QUICKNOTES AI</div>
+        <div class="proj-desc">AI-powered note-taking with Gemini API — smart summarization, contextual tagging, Material You design. Backend deployed on Google Cloud Run. The flagship app.</div>
+        <div class="proj-tags">
+          <span class="p-tag">Kotlin</span>
+          <span class="p-tag">Jetpack Compose</span>
+          <span class="p-tag">Gemini API</span>
+          <span class="p-tag">Google Cloud Run</span>
+          <span class="p-tag">Room DB</span>
+          <span class="p-tag">MVVM</span>
+        </div>
+      </div>
+
+      <div class="proj-card fade">
+        <div class="proj-header">
+          <div class="proj-num">02</div>
+          <div class="proj-status">LIVE</div>
+        </div>
+        <div class="proj-title">BUDGET TRACKER</div>
+        <div class="proj-desc">Personal finance app with category breakdowns, visualizations, and offline-first Room DB architecture.</div>
+        <div class="proj-tags">
+          <span class="p-tag">Kotlin</span>
+          <span class="p-tag">Compose</span>
+          <span class="p-tag">Room DB</span>
+          <span class="p-tag">MVVM</span>
+        </div>
+      </div>
+
+      <div class="proj-card fade">
+        <div class="proj-header">
+          <div class="proj-num">03</div>
+          <div class="proj-status">LIVE</div>
+        </div>
+        <div class="proj-title">FOODSNAP</div>
+        <div class="proj-desc">Food recognition & recipe discovery. Snap → identify → cook. Firebase backend with ML Kit integration.</div>
+        <div class="proj-tags">
+          <span class="p-tag">Kotlin</span>
+          <span class="p-tag">Firebase</span>
+          <span class="p-tag">Retrofit</span>
+          <span class="p-tag">ML Kit</span>
+        </div>
+      </div>
+
+      <div class="proj-card fade">
+        <div class="proj-header">
+          <div class="proj-num">04</div>
+          <div class="proj-status">LIVE</div>
+        </div>
+        <div class="proj-title">FITPULSE</div>
+        <div class="proj-desc">Fitness tracker with workout logs, progress charts, background sync. Full Material You theming.</div>
+        <div class="proj-tags">
+          <span class="p-tag">Kotlin</span>
+          <span class="p-tag">Compose</span>
+          <span class="p-tag">WorkManager</span>
+          <span class="p-tag">Room DB</span>
+        </div>
+      </div>
+
+      <div class="proj-card fade">
+        <div class="proj-header">
+          <div class="proj-num">05</div>
+          <div class="proj-status" style="background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.2);color:var(--cyan)">ONGOING</div>
+        </div>
+        <div class="proj-title">LOGO ANIMATOR STUDIO</div>
+        <div class="proj-desc">Motion design studio — logo animations, character design, Myanmar cultural video production, generative art.</div>
+        <div class="proj-tags">
+          <span class="p-tag">Motion Design</span>
+          <span class="p-tag">Animation</span>
+          <span class="p-tag">Generative Art</span>
+          <span class="p-tag">Myanmar Media</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-inner">
+    <div class="sec-header fade">
+      <div class="sec-prompt">ping moe --verbose</div>
+      <h2 class="sec-title">Get In <span>Touch</span></h2>
+    </div>
+    <div class="contact-terminal fade">
+      <div class="terminal-bar">
+        <div class="t-dots">
+          <div class="t-dot" style="background:#ff5f57"></div>
+          <div class="t-dot" style="background:#febc2e"></div>
+          <div class="t-dot" style="background:#28c840"></div>
+        </div>
+        <div class="t-title">contact.json</div>
+      </div>
+      <div class="contact-body">
+        <div class="c-line"><span class="c-key">email</span><span class="c-val"><a href="mailto:moekyawaung@graduate.org">moekyawaung@graduate.org</a></span></div>
+        <div class="c-line"><span class="c-key">wiki</span><span class="c-val"><a href="https://moekyaw-aung.github.io/Wiki/" target="_blank">moekyaw-aung.github.io/Wiki</a></span></div>
+        <div class="c-line"><span class="c-key">github</span><span class="c-val"><a href="https://github.com/Moekyawaung-Linux" target="_blank">github.com/Moekyawaung-Linux</a></span></div>
+        <div class="c-line"><span class="c-key">location</span><span class="c-val" style="color:var(--dim)">Tachileik, Myanmar 🇲🇲</span></div>
+        <div class="c-line"><span class="c-key">status</span><span class="c-val" style="color:var(--green)">✓ open to contracts &amp; collabs</span></div>
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);font-size:.8rem;color:var(--dim)">
+          # Response time: usually within 24 hours<br/>
+          # Specializing in Android · AI integration · Motion Design
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-text">© 2025 <span>Moe Kyaw Aung</span> — Built on Linux. Shipped from Tachileik.</div>
+  <div class="footer-links">
+    <a href="https://moekyaw-aung.github.io/Wiki/" target="_blank">Wiki</a>
+    <a href="https://github.com/Moekyawaung-Linux" target="_blank">GitHub</a>
+    <a href="mailto:moekyawaung@graduate.org">Email</a>
+  </div>
+</footer>
+
+<script>
+// Matrix rain
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; drops = Array(Math.floor(canvas.width/16)).fill(1); });
+const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()アイウエオカキクケコサシスセソ';
+let drops = Array(Math.floor(canvas.width/16)).fill(1);
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(2,4,8,0.05)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#00ff9f';
+  ctx.font = '14px Fira Code';
+  drops.forEach((y,i) => {
+    const c = chars[Math.floor(Math.random()*chars.length)];
+    ctx.fillStyle = Math.random() > .95 ? '#00e5ff' : '#00ff9f';
+    ctx.globalAlpha = Math.random() * 0.4 + 0.1;
+    ctx.fillText(c, i*16, y*16);
+    if(y*16 > canvas.height && Math.random() > .975) drops[i] = 0;
+    drops[i]++;
+  });
+  ctx.globalAlpha = 1;
+}
+setInterval(drawMatrix, 60);
+
+// Cursor
+const cur = document.getElementById('cursor');
+document.addEventListener('mousemove', e => { cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; });
+
+// Scroll fade
+const obs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('show'); }), {threshold:.1});
+document.querySelectorAll('.fade').forEach(el => obs.observe(el));
+
+// Progress bars animate on view
+const pobs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) {
+      e.target.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w; });
+    }
+  });
+}, {threshold:.3});
+document.querySelectorAll('#hero').forEach(el => {
+  setTimeout(() => { document.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.w); }, 1200);
+});
+</script>
+</body>
+</html>
